@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/ShiftHub.API/ShiftHub.API.csproj" />
+    <Project Path="src/ShiftHub.Application/ShiftHub.Application.csproj" />
+    <Project Path="src/ShiftHub.Domain/ShiftHub.Domain.csproj" />
+    <Project Path="src/ShiftHub.Infrastructure/ShiftHub.Infrastructure.csproj" />
+    <Project Path="src/ShiftHub.Worker/ShiftHub.Worker.csproj" />
+  </Folder>
+</Solution>

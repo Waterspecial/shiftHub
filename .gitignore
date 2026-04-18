@@ -1,0 +1,40 @@
+# .NET
+bin/
+obj/
+*.user
+*.suo
+.vs/
+*.userprefs
+*.DS_Store
+TestResults/
+*.nupkg
+*.snupkg
+
+# Environment
+.env
+.env.local
+.env.*.local
+appsettings.Development.json
+appsettings.Production.json
+
+# Logs
+logs/
+*.log
+
+# Node / Frontend
+node_modules/
+.next/
+dist/
+build/
+.expo/
+
+# Docker
+docker-data/
+
+# Rider / VS Code
+.idea/
+.vscode/
+*.code-workspace
+
+# EF Core migrations (keep the folder, ignore nothing — just a note)
+# Migrations are committed intentionally

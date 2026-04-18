@@ -1,0 +1,6 @@
+@ShiftHub.API_HostAddress = http://localhost:5085
+
+GET {{ShiftHub.API_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

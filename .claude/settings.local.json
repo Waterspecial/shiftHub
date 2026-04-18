@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(extract-text /Users/MAC/Downloads/ShiftHub-Product-Document-V2.docx)",
+      "Bash(pandoc /Users/MAC/Downloads/ShiftHub-Product-Document-V2.docx -t markdown)",
+      "Bash(brew install *)",
+      "Bash(export PATH=\"/opt/homebrew/bin:$PATH\")",
+      "Bash(git init *)",
+      "Bash(dotnet new *)"
+    ]
+  }
+}

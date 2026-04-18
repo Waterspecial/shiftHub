@@ -1,0 +1,936 @@
+
+
+
+
+
+
+ShiftHub
+Product & System Design Document
+
+
+Multi-tenant shift management, CRM, and payroll platform
+Built for cleaning, housekeeping, security, and staffing agencies
+
+
+
+
+Technology Stack: .NET 8 / ASP.NET Core / EF Core / PostgreSQL
+Version 2.0 (Updated) — April 2026
+CONFIDENTIAL
+
+Table of Contents
+
+
+
+1. Product Overview
+1.1 The Problem
+Small and mid-sized staffing agencies — particularly those in cleaning, housekeeping, and security — currently manage their shift operations through WhatsApp groups. A manager drops a message like “Need 3 cleaners Monday 8am at the Hilton” into a group chat with 40+ workers. Multiple workers reply “I’ll take it!” simultaneously, no one knows who actually got the shift, there is no audit trail, and payroll is calculated manually in spreadsheets.
+This approach creates five critical problems:
+	•	No accountability — workers claim shifts but don’t show up, with no record of commitment
+	•	No proof of attendance — agencies have no way to verify workers actually arrived
+	•	Payroll chaos — hours are tracked manually, leading to disputes and errors every pay period
+	•	No client management — contracts, complaints, and renewals are tracked in the manager’s head
+	•	No scalability — an agency with 100+ workers cannot function on WhatsApp
+1.2 The Solution
+ShiftHub is a multi-tenant SaaS platform that replaces WhatsApp-based shift management with a structured, real-time system. Each agency gets their own isolated workspace where managers create and publish shifts, workers accept them through a mobile app, timesheets are recorded with clock-in/out times, and payroll is calculated automatically from approved timesheets.
+The platform also enables workers to hold memberships in multiple agencies. Like Slack, one login gives access to separate workspaces. Workers manage their own schedules across agencies — the system informs but does not enforce. The platform includes a built-in CRM module so agencies can manage their entire client lifecycle from lead generation through contract management to invoicing, all connected to operational data that proves service quality.
+1.3 Target Market
+Throughout this document, we use two fictional agencies to illustrate how the platform works:
+SparkleClean Ltd
+GuardForce Security
+Cleaning agency based in Manchester
+Security staffing agency based in London
+45 cleaners, 3 managers, 1 admin
+120 guards, 8 supervisors, 2 admins
+Clients: Hilton, WeWork, Arndale Centre
+Clients: Westfield, Canary Wharf, O2 Arena
+Pays workers weekly
+Pays workers monthly
+Pay rates: £11.50–£18/hr
+Pay rates: £12–£22/hr
+1.4 Key Features
+Feature
+What It Does
+Why It Matters
+Multi-tenancy
+Each agency gets an isolated workspace with own data, branding, and settings
+One platform serves unlimited agencies; data never leaks between them
+Multi-org workers
+Workers hold memberships in multiple agencies. One login, separate workspaces (like Slack)
+Workers like Amina can work for SparkleClean and FreshStart without switching accounts
+Shift management
+Create, publish, and fill shifts with automatic slot tracking
+Replaces WhatsApp chaos with structured, first-come-first-served acceptance
+Timesheet tracking
+Clock in/out with timestamps, manager approval workflow
+Provides audit trail and eliminates manual hours disputes
+Auto payroll
+Calculates pay from approved timesheets with tax and NI deductions
+Eliminates spreadsheet errors and pay disputes
+Built-in CRM
+Track leads, opportunities, contracts, complaints, and invoices
+Connected to operational data — complaints auto-pull shift details
+Real-time alerts
+Push notifications, SMS fallback, and SignalR live updates
+Workers see new shifts instantly; managers see clock-ins in real time
+Personal calendar
+Workers view all their shifts from all workspaces in one calendar (client-side only)
+Helps workers manage schedules across agencies without system enforcement
+Reporting
+Hours, costs, reliability scores, and client health dashboards
+Data-driven decisions for staffing, pricing, and client retention
+
+2. System Architecture
+2.1 Architecture Overview
+ShiftHub follows clean architecture with four distinct layers. Each layer has a single responsibility and only depends on the layer below it.
+2.1.1 Solution structure
+Project
+Layer
+Responsibility
+ShiftHub.API
+Presentation
+ASP.NET Core Web API. Controllers, JWT authentication, middleware for tenant resolution, request validation, and API versioning.
+ShiftHub.Worker
+Presentation
+Background service using Hangfire. Processes scheduled payroll runs, sends shift reminders, flags no-shows, handles contract renewal alerts.
+ShiftHub.Application
+Business logic
+CQRS with MediatR. Commands (CreateShiftCommand, AcceptShiftCommand, RunPayrollCommand) and queries. Defines interfaces like IShiftRepository and INotificationService.
+ShiftHub.Domain
+Core
+Entity classes, value objects, enums, and domain events. Zero dependencies on external libraries. This is where Organisation, User, OrgMembership, Shift, Timesheet, etc. live.
+ShiftHub.Infrastructure
+Infrastructure
+EF Core DbContext with multi-tenant query filters, repository implementations, SignalR hub, email/SMS services (Twilio), file storage (Azure Blob), HMRC API integration.
+2.1.2 Technology stack
+Component
+Technology
+Backend framework
+.NET 8 / ASP.NET Core Web API
+ORM
+Entity Framework Core 8 with PostgreSQL provider (Npgsql)
+Database
+PostgreSQL 16 — primary data store with tenant-scoped queries
+Cache
+Redis — session management, rate limiting, real-time state
+Real-time
+SignalR — live shift updates, clock-in notifications to manager dashboard
+Background jobs
+Hangfire — payroll batch processing, scheduled reminders, no-show detection
+Authentication
+ASP.NET Identity + JWT tokens. Workers: phone + OTP. Managers: email + password.
+Push notifications
+Firebase Cloud Messaging (FCM) for iOS/Android
+SMS fallback
+Twilio — for workers who have not installed the app yet
+File storage
+Azure Blob Storage — payslip PDFs, contract documents, company logos
+Tax integration
+HMRC API — PAYE tax tables, National Insurance calculations
+Mobile app
+React Native or Flutter — worker-facing app (iOS + Android)
+Web dashboard
+React / Next.js — manager and admin dashboard
+2.2 Multi-Tenancy & Multi-Organization Membership
+ShiftHub uses a shared database with tenant-scoped query filters. The innovation is that workers are decoupled from organisations through an OrgMembership bridge table.
+Before: User.OrgId = Guid (worker belonged to one agency)
+After: User has many OrgMemberships (worker can join multiple agencies). Each OrgMembership tracks the worker’s role (Worker, Manager, Admin) in that agency.
+When Amina logs in, the app loads her OrgMemberships and opens a workspace selector (like Slack). She chooses SparkleClean or FreshStart. The JWT token is issued with the selected OrgId, and all subsequent queries are scoped to that agency. When she switches workspaces, a new token is issued.
+Each agency sees only their own data. Neither knows about the other. Complete isolation, even though both agencies share the same database.
+2.3 Authentication Flow
+Two authentication paths serve different user types:
+	•	Workers (mobile app): Phone number + OTP (one-time password via SMS). After OTP verification, the server loads all the worker’s OrgMemberships. The app shows a workspace picker. Once a workspace is selected, the server issues a JWT token containing the user’s Id, selected OrgId, and Role.
+	•	Managers/admins (web dashboard): Email + password with optional 2FA. After login, they see only the workspace(s) they belong to. The token includes OrgId and role.
+
+3. Object Model
+3.1 Understanding PK and FK
+PK (Primary Key) is a unique identifier for each record in a table. Think of it like a National Insurance number — no two records can ever share the same PK. Every entity gets a Guid (globally unique identifier) as its PK.
+FK (Foreign Key) is a reference that points to another table’s PK. When a Shift has SiteId as an FK, it’s saying “I happen at this particular site.”
+3.2 Core Operations Entities
+Organisation
+The root tenant entity. Everything in the system belongs to an Organisation.
+Field
+Type
+Key
+Description
+Id
+Guid
+PK
+Unique identifier for this agency
+Name
+string
+
+Agency name (e.g., SparkleClean Ltd)
+Subdomain
+string
+
+Custom URL: sparkleclean.shifthub.co.uk
+BillingEmail
+string
+
+Email for subscription invoices
+LogoUrl
+string?
+
+Agency logo for branding
+PayFrequency
+enum
+
+Weekly, Biweekly, or Monthly
+Settings
+jsonb
+
+Configurable options (timezone, overtime rules, etc.)
+CreatedAt
+DateTime
+
+When the agency signed up
+
+User
+A person who uses the platform. Decoupled from Organisation via OrgMembership. A user can have multiple memberships across different agencies.
+Field
+Type
+Key
+Description
+Id
+Guid
+PK
+Unique identifier for this person
+FullName
+string
+
+Full name for display and payslips
+Email
+string
+
+Login email (managers) or contact email
+Phone
+string
+
+Login phone (workers via OTP)
+Qualifications
+string[]
+
+SIA licence, DBS check, COSHH certified, etc.
+IsActive
+bool
+
+Soft delete — deactivated users keep their history
+DeviceToken
+string?
+
+Firebase token for push notifications
+
+OrgMembership
+NEW: The bridge table that connects users to organisations. One row = one person’s role in one agency. Replaces the direct User.OrgId relationship.
+Field
+Type
+Key
+Description
+Id
+Guid
+PK
+Unique identifier for this membership
+UserId
+Guid
+FK
+Which person
+OrgId
+Guid
+FK
+Which agency
+Role
+enum
+
+Worker, Manager, or Admin (their role in this agency)
+Status
+enum
+
+Pending, Active, Suspended, Left
+JoinedAt
+DateTime
+
+When they joined this agency
+InvitedById
+Guid?
+FK
+Who invited them (if applicable)
+LastActiveAt
+DateTime?
+
+Last time they used this workspace
+
+Client
+A company or organisation that the agency provides services to.
+Field
+Type
+Key
+Description
+Id
+Guid
+PK
+Unique identifier for this client
+OrgId
+Guid
+FK
+Which agency manages this client
+Name
+string
+
+Client company name
+ContactName
+string
+
+Primary contact person
+ContactEmail
+string
+
+Contact email address
+ContactPhone
+string
+
+Contact phone number
+BillingAddress
+string
+
+Address for invoices
+HealthScore
+decimal?
+
+Auto-calculated score based on complaints and reliability
+
+Site
+A physical location where work happens. One client can have multiple sites.
+Field
+Type
+Key
+Description
+Id
+Guid
+PK
+Unique identifier for this location
+ClientId
+Guid
+FK
+Which client this site belongs to
+Name
+string
+
+Site name (e.g., Hilton Manchester Deansgate)
+Address
+string
+
+Full street address
+Notes
+string?
+
+Access instructions, parking info, etc.
+
+PayRate
+Defines how much workers are paid per hour for different types of work.
+Field
+Type
+Key
+Description
+Id
+Guid
+PK
+Unique identifier for this rate
+OrgId
+Guid
+FK
+Which agency defines this rate
+Name
+string
+
+Rate name (e.g., Standard clean, Night shift)
+HourlyRate
+decimal
+
+Base hourly pay (e.g., £11.50)
+OvertimeRate
+decimal
+
+Overtime multiplier rate
+HolidayRate
+decimal
+
+Bank holiday rate
+NightRate
+decimal?
+
+Night shift premium (if applicable)
+
+Shift
+The core unit of work — a block of time at a specific site that needs to be filled by workers.
+Field
+Type
+Key
+Description
+Id
+Guid
+PK
+Unique identifier for this shift
+OrgId
+Guid
+FK
+Which agency created this shift
+SiteId
+Guid
+FK
+Where this shift takes place
+PayRateId
+Guid
+FK
+How much workers will be paid
+StartTime
+DateTime
+
+Shift start date and time
+EndTime
+DateTime
+
+Shift end date and time
+SlotsNeeded
+int
+
+How many workers are needed (e.g., 3)
+Status
+ShiftStatus
+
+Draft, Published, Filled, InProgress, Completed, Cancelled
+Notes
+string?
+
+Special instructions for workers
+CreatedById
+Guid
+FK
+Which manager created the shift
+
+ShiftAssignment
+The link between a worker and a shift. When a worker accepts a shift, a ShiftAssignment is created.
+Field
+Type
+Key
+Description
+Id
+Guid
+PK
+Unique identifier for this assignment
+ShiftId
+Guid
+FK
+Which shift this assignment is for
+UserId
+Guid
+FK
+Which worker is assigned
+Status
+AssignmentStatus
+
+Offered, Accepted, Rejected, Released, NoShow, Completed
+AcceptedAt
+DateTime?
+
+When the worker accepted
+RejectedAt
+DateTime?
+
+When the worker rejected (if applicable)
+ReleasedAt
+DateTime?
+
+When the worker released the shift (if applicable)
+
+Timesheet
+The actual record of work done. Created when a worker clocks in and completed when they clock out. No GPS verification.
+Field
+Type
+Key
+Description
+Id
+Guid
+PK
+Unique identifier for this timesheet
+AssignmentId
+Guid
+FK
+Which shift assignment this records
+ClockIn
+DateTime
+
+When the worker clocked in
+ClockOut
+DateTime?
+
+When the worker clocked out
+HoursWorked
+decimal
+
+Calculated hours (ClockOut – ClockIn)
+IsApproved
+bool
+
+Manager has verified the timesheet
+ApprovedById
+Guid?
+FK
+Which manager approved it
+
+PayrollRun
+A batch calculation for a pay period.
+Field
+Type
+Key
+Description
+Id
+Guid
+PK
+Unique identifier for this payroll run
+OrgId
+Guid
+FK
+Which agency is running payroll
+PeriodStart
+DateOnly
+
+Start date of the pay period
+PeriodEnd
+DateOnly
+
+End date of the pay period
+Status
+PayrollStatus
+
+Pending, Processing, Completed, Failed
+TotalGross
+decimal
+
+Sum of all gross pay in this run
+TotalNet
+decimal
+
+Sum of all net pay after deductions
+ProcessedAt
+DateTime?
+
+When the payroll was finalised
+
+Payslip
+An individual worker’s pay summary for a specific period.
+Field
+Type
+Key
+Description
+Id
+Guid
+PK
+Unique identifier for this payslip
+PayrollRunId
+Guid
+FK
+Which payroll run generated this
+UserId
+Guid
+FK
+Which worker this payslip is for
+GrossPay
+decimal
+
+Total pay before deductions
+TaxDeducted
+decimal
+
+PAYE income tax deducted
+NiDeducted
+decimal
+
+National Insurance deducted
+NetPay
+decimal
+
+Take-home pay (gross – tax – NI)
+PdfUrl
+string?
+
+Link to downloadable payslip PDF
+
+3.3 CRM Entities
+Lead
+A potential client who hasn’t signed a contract yet.
+Field
+Type
+Key
+Description
+Id
+Guid
+PK
+Unique identifier for this lead
+OrgId
+Guid
+FK
+Which agency is pursuing this lead
+CompanyName
+string
+
+Name of the potential client
+ContactName
+string
+
+Decision maker’s name
+ContactEmail
+string
+
+Decision maker’s email
+ContactPhone
+string
+
+Decision maker’s phone
+Status
+LeadStatus
+
+New, Contacted, MeetingBooked, ProposalSent, Won, Lost
+Source
+LeadSource
+
+Referral, Website, ColdCall, Event, LinkedIn
+Notes
+string?
+
+Background info and conversation notes
+CreatedAt
+DateTime
+
+When the lead was first recorded
+
+Opportunity
+When a lead looks promising, it becomes a deal with an estimated value and close date.
+Field
+Type
+Key
+Description
+Id
+Guid
+PK
+Unique identifier for this opportunity
+LeadId
+Guid
+FK
+Which lead this opportunity came from
+Title
+string
+
+Deal name (e.g., Premier Inn Salford – Cleaning)
+EstMonthlyValue
+decimal
+
+Estimated monthly revenue if won
+Stage
+OpportunityStage
+
+Qualification, Proposal, Negotiation, ClosedWon, ClosedLost
+Probability
+int
+
+Win probability as percentage (0–100)
+ExpectedCloseDate
+DateOnly
+
+When we expect to close the deal
+AssignedToId
+Guid
+FK
+Which manager is working this deal
+
+Contract
+The formal agreement with a client.
+Field
+Type
+Key
+Description
+Id
+Guid
+PK
+Unique identifier for this contract
+ClientId
+Guid
+FK
+Which client this contract is with
+OrgId
+Guid
+FK
+Which agency holds this contract
+StartDate
+DateOnly
+
+Contract start date
+EndDate
+DateOnly
+
+Contract end date
+MonthlyValue
+decimal
+
+Monthly contract value to the agency
+HourlyClientRate
+decimal
+
+What the agency charges the client per hour
+Status
+ContractStatus
+
+Active, Expiring, Expired, Terminated
+AutoRenew
+bool
+
+Whether the contract auto-renews
+RenewalNoticeDays
+int
+
+Days before expiry to trigger renewal alert
+
+Complaint
+When a client reports an issue.
+Field
+Type
+Key
+Description
+Id
+Guid
+PK
+Unique identifier for this complaint
+ClientId
+Guid
+FK
+Which client raised the complaint
+ShiftId
+Guid?
+FK
+Which shift the complaint relates to (optional)
+Description
+string
+
+What the client reported
+Severity
+Severity
+
+Low, Medium, High, Critical
+Status
+ComplaintStatus
+
+Open, Investigating, Resolved, Closed
+ResolvedById
+Guid?
+FK
+Which manager resolved it
+ResolvedAt
+DateTime?
+
+When it was resolved
+Resolution
+string?
+
+How it was resolved
+
+Activity
+A log entry for any interaction with a lead or client.
+Field
+Type
+Key
+Description
+Id
+Guid
+PK
+Unique identifier for this activity
+OrgId
+Guid
+FK
+Which agency logged this
+LeadId
+Guid?
+FK
+Associated lead (if applicable)
+ClientId
+Guid?
+FK
+Associated client (if applicable)
+UserId
+Guid
+FK
+Who performed the activity
+Type
+ActivityType
+
+Call, Email, Meeting, SiteVisit, Note
+Subject
+string
+
+Brief description of the interaction
+Notes
+string?
+
+Detailed notes
+CreatedAt
+DateTime
+
+When the activity happened
+
+Invoice
+Auto-generated from contract rates and timesheet hours.
+Field
+Type
+Key
+Description
+Id
+Guid
+PK
+Unique identifier for this invoice
+ContractId
+Guid
+FK
+Which contract this invoice is under
+OrgId
+Guid
+FK
+Which agency is billing
+PeriodStart
+DateOnly
+
+Billing period start
+PeriodEnd
+DateOnly
+
+Billing period end
+TotalHours
+decimal
+
+Total hours delivered (from timesheets)
+HourlyRate
+decimal
+
+Client’s contracted hourly rate
+Amount
+decimal
+
+Total invoice amount (hours × rate)
+Status
+InvoiceStatus
+
+Draft, Sent, Paid, Overdue
+SentAt
+DateTime?
+
+When the invoice was emailed to the client
+
+4. Frontend Design
+The platform has three frontends: a mobile app for workers and a web dashboard for managers, plus a personal workspace switcher.
+4.1 Workspace Switcher (Mobile & Web)
+Mobile app
+At the top of every screen, a workspace button shows the current agency’s name and logo. Tapping it opens a switcher that lists all the user’s OrgMemberships. She sees her role in each agency, any notification badges indicating new shifts, and an option to “Join another agency.” Switching workspaces instantly swaps the context — all shifts, pay, and data below are now from the newly selected agency.
+Think of it like Slack: your phone has one app, but you can be a member of multiple workspaces. Tapping the workspace picker at the top shows all your communities.
+Web dashboard
+The web interface also shows the active workspace at the top left with a dropdown to switch. Managers see only the workspace(s) they belong to. If a manager is only part of SparkleClean, they don’t see a switcher — just the agency name and logo.
+4.2 Worker Mobile App
+Home / Available shifts
+Shows a list of available shifts in the currently active workspace, sorted by date. Each shift card displays site name, date, start/end time, pay rate, and slots remaining. Workers tap a shift to see details and accept. Once accepted, the shift moves to the “My shifts” tab.
+My shifts / Weekly schedule
+A calendar view showing all shifts the worker has accepted in this workspace, sorted by date. Today’s shift is prominently displayed with a “Clock In” button. Workers can review their upcoming schedule and see any conflicts they may have (visually in the calendar). If they realise a clash, they can release one shift to free it up.
+Clock-in/out
+When a shift is about to start, a “Clock In” button becomes active. The worker taps it and records a timestamp with no GPS requirement. Clock-out works the same way, showing total hours on confirmation.
+Pay and payslips
+Current period earnings (running total of hours times rate for approved timesheets). Payslip history with download buttons. Each payslip is specific to this workspace — when Amina switches to FreshStart, she sees FreshStart’s payslips. No mixing.
+Personal calendar (client-side only)
+A private view that aggregates shifts from all the worker’s workspaces into one calendar. This is purely a client-side feature — the app fetches shifts from each workspace separately, merges them locally, and displays them colour-coded by agency. If two shifts overlap in time, the calendar highlights the clash with a gentle nudge: “You have overlapping shifts on Friday. You could release one.”
+This is Amina’s personal tool only. No agency can see it. No data is sent to the backend about her cross-workspace schedule. She can release a shift from this view if she spots a conflict.
+Profile and settings
+Update contact info, upload qualifications, set notification preferences, and mark unavailability. These are all profile-wide (not workspace-specific).
+4.3 Manager/Admin Web Dashboard
+Dashboard home
+An overview of the currently active workspace. Today’s shifts, how many workers are clocked in, any no-shows, key metrics, and upcoming alerts. Quick actions to create a shift or run payroll.
+Shift management
+Create, publish, and manage all shifts in this workspace. Calendar view showing shifts colour-coded by status. Each shift shows accepted workers, real-time clock-in status, and any no-shows.
+Workers / Team management
+Worker directory filtered to show only workers in this workspace. Their personal info, qualifications, shift history, and reliability score within this agency. Note: the system does not know or display the worker’s involvement with other agencies.
+Timesheet approval
+List of pending timesheets for this workspace. Manager reviews and approves. No cross-workspace overlap detection — the system never checks whether a worker has a shift at another agency.
+Payroll
+Run payroll for the agency on their schedule (weekly, monthly, etc.). All calculations and payslips are specific to this workspace.
+CRM, complaints, invoicing, reporting
+All CRM features operate within this workspace only. Complaints, contracts, leads, invoices, and analytics are all scoped to the current agency.
+
+5. Backend Breakdown
+5.1 Shift lifecycle
+The same as before, with one key difference: no overlap detection across agencies.
+	•	Manager creates shift — CreateShiftCommand validates the data and creates a Shift with status Draft.
+	•	Manager publishes shift — PublishShiftCommand changes status to Published. A domain event triggers notification handlers to send push notifications to all active workers in this workspace.
+	•	Worker accepts shift — AcceptShiftCommand checks: (a) are there slots available? (b) does the worker have an assignment for this shift already? (c) is the worker’s membership in this workspace still active? If all pass, ShiftAssignment is created. No cross-agency checks.
+	•	Worker clocks in/out — ClockInCommand and ClockOutCommand record timestamps. No GPS verification. Timesheet is created with ClockIn/ClockOut times. HoursWorked is calculated.
+	•	Manager approves timesheet — ApproveTimesheetCommand sets IsApproved to true. This timesheet is now eligible for payroll.
+	•	Payroll processes — RunPayrollCommand collects all approved timesheets for this workspace and pay period, calculates pay with tax/NI, and generates payslips.
+5.2 Multi-tenancy with OrgMembership
+Every API endpoint requires authentication. The JWT token contains UserId and the currently active OrgId (selected when the workspace was switched). TenantResolutionMiddleware validates that the user has an active membership in that OrgId before proceeding.
+All queries are automatically filtered to the active OrgId via EF Core global query filters. A manager at SparkleClean can never accidentally see GuardForce’s shifts or workers.
+5.3 Personal Calendar (Client-Side Only)
+This is purely a frontend feature. When Amina opens “My calendar,” the mobile app makes separate API calls to fetch shifts from each of her workspaces. For example:
+	•	GET /api/shifts/my-assignments?workspaceId=sparkleclean-org-id (returns Amina’s SparkleClean shifts)
+	•	GET /api/shifts/my-assignments?workspaceId=freshstart-org-id (returns Amina’s FreshStart shifts)
+The app merges these results locally and renders them in a combined calendar view. No backend logic knows about the other shifts. No data leakage. When Amina spots an overlap and taps “Release” on a shift, the app calls the API for that shift’s workspace only: POST /api/shifts/{id}/release. That workspace updates the assignment status and notifies other workers. Done.
+5.4 Releasing Shifts
+A new action in the shift lifecycle. ReleaseShiftAssignmentCommand sets the assignment status to Released and reopens the slot in the shift. Other workers get a push notification: “A slot has opened up at [site]”. The worker who released it doesn’t get penalised by the system — it’s her choice.
+5.5 Background Jobs (Hangfire)
+Job
+Schedule
+What It Does
+Payroll processing
+Per org frequency
+Scoped to each workspace. Collects approved timesheets, calculates pay, generates payslips.
+Shift reminders
+1 hour before shift
+Sends push notification to assigned workers. Scoped to one workspace.
+No-show detection
+30 min after start
+Scoped to one workspace. If assigned worker hasn’t clocked in, flags as no-show.
+Contract renewal alerts
+Daily at 9am
+Checks contracts expiring soon. Scoped to each workspace.
+Invoice generation
+1st of each month
+Creates draft invoices for each workspace separately.
+Health score recalc
+Daily at 2am
+Scoped to each workspace. Updates client health based on that workspace’s data.
+
+6. Build Roadmap
+Phase 1: Operations MVP (Weeks 1–10)
+Build the core that solves the WhatsApp problem with multi-workspace support.
+	•	Organisation, User, OrgMembership, Client, Site entities
+	•	Shift creation, publishing, and acceptance
+	•	Worker mobile app: available shifts, my shifts, accept/reject
+	•	Clock-in/out with simple timestamps (no GPS)
+	•	Manager dashboard: shift calendar, worker list
+	•	JWT authentication with phone OTP for workers
+	•	Workspace switcher (Slack-like) on mobile and web
+	•	Personal calendar (client-side aggregation) for workers
+Phase 2: Payroll (Weeks 11–15)
+	•	Timesheet approval workflow
+	•	PayRate management
+	•	PayrollRun and Payslip generation with PAYE and NI
+	•	Payslip PDF generation and notifications
+	•	Payroll history and CSV export
+Phase 3: CRM Core (Weeks 16–20)
+	•	Contract management with renewal tracking
+	•	Complaint system
+	•	Invoice auto-generation
+	•	Client health score
+	•	Activity logging
+Phase 4: CRM Advanced (Weeks 21–26)
+	•	Lead and opportunity pipeline
+	•	Reporting and analytics
+	•	Worker performance scoring
+	•	Bulk shift creation
+	•	API documentation
+
+
+End of Document
+ShiftHub v2.0 (Updated) — April 2026 — Confidential

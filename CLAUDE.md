@@ -69,13 +69,20 @@ apps/
 - [x] NuGet packages installed (MediatR, FluentValidation, EF Core/Npgsql, Identity, Redis, JwtBearer, Swagger)
 - [x] Domain enums: `PayFrequency`, `UserRole`, `MembershipStatus`, `ShiftStatus`, `AssignmentStatus`
 - [x] Domain entities: `Organisation`, `User`, `OrgMembership`, `Client`, `Site`, `PayRate`, `Shift`, `ShiftAssignment`, `Timesheet`
+- [x] `ICurrentTenantService` — interface in Application
+- [x] `CurrentTenantService` — reads OrgId + UserId from JWT token (Infrastructure)
+- [x] `ShiftHubDbContext` — EF Core DbContext with multi-tenant query filters (Infrastructure)
+- [x] `Program.cs` — DbContext + tenant service wired up
+- [x] `appsettings.json` — PostgreSQL connection string configured
+- [x] Docker running — PostgreSQL + Redis live locally
+- [x] EF Core migration `InitialCreate` — all 9 tables created in PostgreSQL
+- [x] DBeaver connected — tables visible
 
 ### Up Next
-- [ ] `ShiftHubDbContext` — EF Core DbContext with multi-tenant query filters
+- [ ] JWT authentication setup (login for workers + managers)
+- [ ] `TenantResolutionMiddleware` — validates membership on every request
 - [ ] Repository interfaces in Application
 - [ ] Repository implementations in Infrastructure
-- [ ] JWT authentication setup
-- [ ] `TenantResolutionMiddleware`
 - [ ] API controllers (Phase 1 endpoints)
 
 ## Common Commands

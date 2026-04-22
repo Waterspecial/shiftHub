@@ -12,7 +12,7 @@ ShiftHub is a multi-tenant SaaS platform that replaces WhatsApp-based shift mana
 | Cache | Redis |
 | Real-time | SignalR |
 | Background jobs | Hangfire (Phase 2+) |
-| Auth | ASP.NET Identity + JWT. Workers: phone + OTP. Managers: email + password |
+| Auth | ASP.NET Identity + JWT. Both workers and managers: email + password. Workers also have a phone number for SMS notifications. |
 | Push notifications | Firebase Cloud Messaging (FCM) |
 | SMS | Twilio |
 | File storage | Azure Blob Storage |
@@ -42,6 +42,7 @@ apps/
 
 ## Multi-Tenancy
 - Shared database with EF Core global query filters scoped to `OrgId`
+- Both workers and managers log in with email + password
 - JWT token contains `UserId` + active `OrgId`
 - `TenantResolutionMiddleware` validates membership before every request
 - Workers are linked to agencies via `OrgMembership` bridge table (not a direct foreign key)

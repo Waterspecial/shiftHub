@@ -6,7 +6,8 @@
       "Bash(brew install *)",
       "Bash(export PATH=\"/opt/homebrew/bin:$PATH\")",
       "Bash(git init *)",
-      "Bash(dotnet new *)"
+      "Bash(dotnet new *)",
+      "Bash(dotnet build *)"
     ]
   }
 }

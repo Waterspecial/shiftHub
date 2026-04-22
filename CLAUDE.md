@@ -53,10 +53,30 @@ apps/
 - Releasing a shift reopens the slot and notifies other workers — no penalty applied
 
 ## Build Phases
-- **Phase 1 (Weeks 1–10):** Operations MVP — shifts, clock-in, workspace switcher
+- **Phase 1 (Weeks 1–10):** Operations MVP — shifts, clock-in, workspace switcher ← current
 - **Phase 2 (Weeks 11–15):** Payroll — timesheets, PAYE/NI, payslips
 - **Phase 3 (Weeks 16–20):** CRM core — contracts, complaints, invoices
 - **Phase 4 (Weeks 21–26):** CRM advanced — leads pipeline, analytics, reporting
+
+## Progress Tracker
+
+### Done
+- [x] Git repo + `.gitignore`
+- [x] Solution + 5 projects scaffolded (`Domain`, `Application`, `Infrastructure`, `API`, `Worker`)
+- [x] Project references wired (clean architecture)
+- [x] `docker-compose.yml` — PostgreSQL + Redis
+- [x] `.env.example` — all environment variable keys
+- [x] NuGet packages installed (MediatR, FluentValidation, EF Core/Npgsql, Identity, Redis, JwtBearer, Swagger)
+- [x] Domain enums: `PayFrequency`, `UserRole`, `MembershipStatus`, `ShiftStatus`, `AssignmentStatus`
+- [x] Domain entities: `Organisation`, `User`, `OrgMembership`, `Client`, `Site`, `PayRate`, `Shift`, `ShiftAssignment`, `Timesheet`
+
+### Up Next
+- [ ] `ShiftHubDbContext` — EF Core DbContext with multi-tenant query filters
+- [ ] Repository interfaces in Application
+- [ ] Repository implementations in Infrastructure
+- [ ] JWT authentication setup
+- [ ] `TenantResolutionMiddleware`
+- [ ] API controllers (Phase 1 endpoints)
 
 ## Common Commands
 ```bash

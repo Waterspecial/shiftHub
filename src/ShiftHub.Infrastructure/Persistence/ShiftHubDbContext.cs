@@ -38,6 +38,47 @@ public class ShiftHubDbContext : DbContext
         modelBuilder.Entity<Timesheet>().HasQueryFilter(t => t.Assignment.Shift.OrgId == _tenant.OrgId);
         modelBuilder.Entity<OrgMembership>().HasQueryFilter(m => m.OrgId == _tenant.OrgId);
 
+        // explicit FK mappings — EF Core convention expects "OrganisationId" but we use "OrgId"
+        modelBuilder.Entity<OrgMembership>()
+            .HasOne(m => m.Organisation)
+            .WithMany(o => o.Memberships)
+            .HasForeignKey(m => m.OrgId);
+
+        modelBuilder.Entity<Client>()
+            .HasOne(c => c.Organisation)
+            .WithMany(o => o.Clients)
+            .HasForeignKey(c => c.OrgId);
+
+        modelBuilder.Entity<PayRate>()
+            .HasOne(p => p.Organisation)
+            .WithMany(o => o.PayRates)
+            .HasForeignKey(p => p.OrgId);
+
+        modelBuilder.Entity<Shift>()
+            .HasOne(s => s.Organisation)
+            .WithMany(o => o.Shifts)
+            .HasForeignKey(s => s.OrgId);
+
+        modelBuilder.Entity<Site>()
+            .HasOne(s => s.Client)
+            .WithMany(c => c.Sites)
+            .HasForeignKey(s => s.ClientId);
+
+        modelBuilder.Entity<ShiftAssignment>()
+            .HasOne(a => a.Shift)
+            .WithMany(s => s.Assignments)
+            .HasForeignKey(a => a.ShiftId);
+
+        modelBuilder.Entity<ShiftAssignment>()
+            .HasOne(a => a.User)
+            .WithMany(u => u.Assignments)
+            .HasForeignKey(a => a.UserId);
+
+        modelBuilder.Entity<Timesheet>()
+            .HasOne(t => t.Assignment)
+            .WithOne(a => a.Timesheet)
+            .HasForeignKey<Timesheet>(t => t.AssignmentId);
+
         // store string[] as a PostgreSQL text array
         modelBuilder.Entity<User>()
             .Property(u => u.Qualifications)

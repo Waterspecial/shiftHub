@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using ShiftHub.Application.Interfaces;
 using ShiftHub.Infrastructure.Persistence;
 using ShiftHub.Infrastructure.Services;
+using ShiftHub.Infrastructure.Services.Organisations;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -10,6 +11,12 @@ builder.Services.AddHttpContextAccessor();
 
 // Tenant service — reads OrgId and UserId from the JWT on every request
 builder.Services.AddScoped<ICurrentTenantService, CurrentTenantService>();
+
+// Auth service — handles register, login, and workspace selection
+builder.Services.AddScoped<IAuthService, AuthService>();
+
+// Organisation service — handles agency creation and member management
+builder.Services.AddScoped<IOrganisationService, OrganisationService>();
 
 // Database — connects EF Core to PostgreSQL
 builder.Services.AddDbContext<ShiftHubDbContext>(options =>

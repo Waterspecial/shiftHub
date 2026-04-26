@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using ShiftHub.Infrastructure.Persistence;
@@ -11,9 +12,11 @@ using ShiftHub.Infrastructure.Persistence;
 namespace ShiftHub.Infrastructure.Migrations
 {
     [DbContext(typeof(ShiftHubDbContext))]
-    partial class ShiftHubDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260422233335_AddPasswordHashToUser")]
+    partial class AddPasswordHashToUser
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -57,9 +60,12 @@ namespace ShiftHub.Infrastructure.Migrations
                     b.Property<Guid>("OrgId")
                         .HasColumnType("uuid");
 
+                    b.Property<Guid>("OrganisationId")
+                        .HasColumnType("uuid");
+
                     b.HasKey("Id");
 
-                    b.HasIndex("OrgId");
+                    b.HasIndex("OrganisationId");
 
                     b.ToTable("Clients");
                 });
@@ -82,6 +88,9 @@ namespace ShiftHub.Infrastructure.Migrations
                     b.Property<Guid>("OrgId")
                         .HasColumnType("uuid");
 
+                    b.Property<Guid>("OrganisationId")
+                        .HasColumnType("uuid");
+
                     b.Property<int>("Role")
                         .HasColumnType("integer");
 
@@ -93,7 +102,7 @@ namespace ShiftHub.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("OrgId");
+                    b.HasIndex("OrganisationId");
 
                     b.HasIndex("UserId");
 
@@ -157,12 +166,15 @@ namespace ShiftHub.Infrastructure.Migrations
                     b.Property<Guid>("OrgId")
                         .HasColumnType("uuid");
 
+                    b.Property<Guid>("OrganisationId")
+                        .HasColumnType("uuid");
+
                     b.Property<decimal>("OvertimeRate")
                         .HasColumnType("numeric");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("OrgId");
+                    b.HasIndex("OrganisationId");
 
                     b.ToTable("PayRates");
                 });
@@ -188,6 +200,9 @@ namespace ShiftHub.Infrastructure.Migrations
                     b.Property<Guid>("OrgId")
                         .HasColumnType("uuid");
 
+                    b.Property<Guid>("OrganisationId")
+                        .HasColumnType("uuid");
+
                     b.Property<Guid>("PayRateId")
                         .HasColumnType("uuid");
 
@@ -205,7 +220,7 @@ namespace ShiftHub.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("OrgId");
+                    b.HasIndex("OrganisationId");
 
                     b.HasIndex("PayRateId");
 
@@ -353,7 +368,7 @@ namespace ShiftHub.Infrastructure.Migrations
                 {
                     b.HasOne("ShiftHub.Domain.Entities.Organisation", "Organisation")
                         .WithMany("Clients")
-                        .HasForeignKey("OrgId")
+                        .HasForeignKey("OrganisationId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
@@ -364,7 +379,7 @@ namespace ShiftHub.Infrastructure.Migrations
                 {
                     b.HasOne("ShiftHub.Domain.Entities.Organisation", "Organisation")
                         .WithMany("Memberships")
-                        .HasForeignKey("OrgId")
+                        .HasForeignKey("OrganisationId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
@@ -383,7 +398,7 @@ namespace ShiftHub.Infrastructure.Migrations
                 {
                     b.HasOne("ShiftHub.Domain.Entities.Organisation", "Organisation")
                         .WithMany("PayRates")
-                        .HasForeignKey("OrgId")
+                        .HasForeignKey("OrganisationId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
@@ -394,7 +409,7 @@ namespace ShiftHub.Infrastructure.Migrations
                 {
                     b.HasOne("ShiftHub.Domain.Entities.Organisation", "Organisation")
                         .WithMany("Shifts")
-                        .HasForeignKey("OrgId")
+                        .HasForeignKey("OrganisationId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 

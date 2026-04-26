@@ -12,7 +12,7 @@ ShiftHub is a multi-tenant SaaS platform that replaces WhatsApp-based shift mana
 | Cache | Redis |
 | Real-time | SignalR |
 | Background jobs | Hangfire (Phase 2+) |
-| Auth | ASP.NET Identity + JWT. Workers: phone + OTP. Managers: email + password |
+| Auth | ASP.NET Identity + JWT. Both workers and managers: email + password. Workers also have a phone number for SMS notifications. |
 | Push notifications | Firebase Cloud Messaging (FCM) |
 | SMS | Twilio |
 | File storage | Azure Blob Storage |
@@ -42,6 +42,7 @@ apps/
 
 ## Multi-Tenancy
 - Shared database with EF Core global query filters scoped to `OrgId`
+- Both workers and managers log in with email + password
 - JWT token contains `UserId` + active `OrgId`
 - `TenantResolutionMiddleware` validates membership before every request
 - Workers are linked to agencies via `OrgMembership` bridge table (not a direct foreign key)
@@ -69,13 +70,20 @@ apps/
 - [x] NuGet packages installed (MediatR, FluentValidation, EF Core/Npgsql, Identity, Redis, JwtBearer, Swagger)
 - [x] Domain enums: `PayFrequency`, `UserRole`, `MembershipStatus`, `ShiftStatus`, `AssignmentStatus`
 - [x] Domain entities: `Organisation`, `User`, `OrgMembership`, `Client`, `Site`, `PayRate`, `Shift`, `ShiftAssignment`, `Timesheet`
+- [x] `ICurrentTenantService` — interface in Application
+- [x] `CurrentTenantService` — reads OrgId + UserId from JWT token (Infrastructure)
+- [x] `ShiftHubDbContext` — EF Core DbContext with multi-tenant query filters (Infrastructure)
+- [x] `Program.cs` — DbContext + tenant service wired up
+- [x] `appsettings.json` — PostgreSQL connection string configured
+- [x] Docker running — PostgreSQL + Redis live locally
+- [x] EF Core migration `InitialCreate` — all 9 tables created in PostgreSQL
+- [x] DBeaver connected — tables visible
 
 ### Up Next
-- [ ] `ShiftHubDbContext` — EF Core DbContext with multi-tenant query filters
+- [ ] JWT authentication setup (login for workers + managers)
+- [ ] `TenantResolutionMiddleware` — validates membership on every request
 - [ ] Repository interfaces in Application
 - [ ] Repository implementations in Infrastructure
-- [ ] JWT authentication setup
-- [ ] `TenantResolutionMiddleware`
 - [ ] API controllers (Phase 1 endpoints)
 
 ## Common Commands

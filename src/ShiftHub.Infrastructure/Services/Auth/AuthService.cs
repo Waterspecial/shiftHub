@@ -57,6 +57,7 @@ public class AuthService : IAuthService
         var user = await _db.Users
             .Include(u => u.Memberships)
                 .ThenInclude(m => m.Organisation)
+            .IgnoreQueryFilters()
             .FirstOrDefaultAsync(u => u.Email == request.Email.ToLower().Trim());
 
         if (user == null || !BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
@@ -98,6 +99,7 @@ public class AuthService : IAuthService
     public async Task<string> SelectWorkspaceAsync(Guid userId, Guid orgId)
     {
         var membership = await _db.OrgMemberships
+            .IgnoreQueryFilters()
             .FirstOrDefaultAsync(m => m.UserId == userId && m.OrgId == orgId && m.Status == MembershipStatus.Active);
 
         if (membership == null)

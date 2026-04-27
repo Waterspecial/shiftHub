@@ -7,6 +7,7 @@ using ShiftHub.Infrastructure.Services;
 using ShiftHub.Infrastructure.Services.Clients;
 using ShiftHub.Infrastructure.Services.Organisations;
 using ShiftHub.Infrastructure.Services.PayRates;
+using ShiftHub.Infrastructure.Services.Shifts;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -28,6 +29,9 @@ builder.Services.AddScoped<IClientService, ClientService>();
 
 // PayRate service — handles pay rate management
 builder.Services.AddScoped<IPayRateService, PayRateService>();
+
+// Shift service — handles shift lifecycle
+builder.Services.AddScoped<IShiftService, ShiftService>();
 
 // Database — connects EF Core to PostgreSQL
 builder.Services.AddDbContext<ShiftHubDbContext>(options =>

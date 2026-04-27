@@ -86,13 +86,23 @@ apps/
 - [x] Fix login query filter issue — `IgnoreQueryFilters()` during auth
 - [x] Full auth flow tested and working in Swagger
 
+- [x] `ClientService` + `ClientController` — client management
+- [x] `PayRateService` + `PayRateController` — pay rate management per client
+- [x] `Site` entity — added `Postcode` field
+- [x] `Shift` entity — added `BreakMinutes` field, removed `HoursWorked` (lives on Timesheet)
+- [x] `ShiftService` — full lifecycle: Create → Publish → Available → Accept → Clock-in → Clock-out
+- [x] UK working time rules — 6hr+ shifts auto-enforce minimum 20 min break
+- [x] `ShiftController` — 6 endpoints (create, publish, available, accept, clock-in, clock-out)
+- [x] `CurrentTenantService` fix — uses `ClaimTypes.NameIdentifier` (JWT middleware remaps `sub`)
+- [x] DateTime UTC fix — `DateTime.SpecifyKind` for PostgreSQL compatibility
+- [x] Full shift lifecycle tested in Postman — Timesheet records `HoursWorked` correctly
+
 ### Up Next
 - [ ] `TenantResolutionMiddleware` — validates membership on every request
-- [ ] Shift Management — create, publish, accept shifts
-- [ ] Clock in / clock out
-- [ ] Client and Site management
+- [ ] Fix global query filters properly (`_tenant.OrgId == null || x.OrgId == _tenant.OrgId`) instead of scattering `IgnoreQueryFilters()`
+- [ ] Release shift — reopens slot and notifies other workers
 - [ ] Repository implementations in Infrastructure
-- [ ] API controllers (Phase 1 endpoints)
+- [ ] Remaining Phase 1 endpoints
 
 ## Common Commands
 ```bash

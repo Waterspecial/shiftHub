@@ -79,10 +79,18 @@ apps/
 - [x] EF Core migration `InitialCreate` — all 9 tables created in PostgreSQL
 - [x] DBeaver connected — tables visible
 
+- [x] JWT authentication — register, login, workspace picker, select workspace
+- [x] `AuthService` — BCrypt password hashing, JWT token generation
+- [x] `OrganisationService` — create agency, add members
+- [x] `AuthController` + `OrganisationController` — HTTP endpoints
+- [x] Fix login query filter issue — `IgnoreQueryFilters()` during auth
+- [x] Full auth flow tested and working in Swagger
+
 ### Up Next
-- [ ] JWT authentication setup (login for workers + managers)
 - [ ] `TenantResolutionMiddleware` — validates membership on every request
-- [ ] Repository interfaces in Application
+- [ ] Shift Management — create, publish, accept shifts
+- [ ] Clock in / clock out
+- [ ] Client and Site management
 - [ ] Repository implementations in Infrastructure
 - [ ] API controllers (Phase 1 endpoints)
 

@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using ShiftHub.Infrastructure.Persistence;
@@ -11,9 +12,11 @@ using ShiftHub.Infrastructure.Persistence;
 namespace ShiftHub.Infrastructure.Migrations
 {
     [DbContext(typeof(ShiftHubDbContext))]
-    partial class ShiftHubDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260427131646_AddSitePostcode")]
+    partial class AddSitePostcode
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

@@ -6,6 +6,7 @@ public class Site
     public Guid ClientId { get; set; }
     public string Name { get; set; } = string.Empty;
     public string Address { get; set; } = string.Empty;
+    public string Postcode { get; set; } = string.Empty;
     public string? Notes { get; set; }
 
     public Client Client { get; set; } = null!;

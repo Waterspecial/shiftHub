@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using Microsoft.AspNetCore.Http;
 using ShiftHub.Application.Interfaces;
 
@@ -10,10 +11,14 @@ public class CurrentTenantService : ICurrentTenantService
 
     public CurrentTenantService(IHttpContextAccessor httpContext)
     {
-        var orgClaim = httpContext.HttpContext?.User?.FindFirst("orgId");
+        var user = httpContext.HttpContext?.User;
+
+        var orgClaim = user?.FindFirst("orgId");
         if (orgClaim != null) OrgId = Guid.Parse(orgClaim.Value);
 
-        var userClaim = httpContext.HttpContext?.User?.FindFirst("sub");
+        // JWT middleware maps "sub" to ClaimTypes.NameIdentifier
+        var userClaim = user?.FindFirst(ClaimTypes.NameIdentifier)
+                        ?? user?.FindFirst("sub");
         if (userClaim != null) UserId = Guid.Parse(userClaim.Value);
     }
 }

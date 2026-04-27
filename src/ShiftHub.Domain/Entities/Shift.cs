@@ -11,6 +11,7 @@ public class Shift
     public DateTime StartTime { get; set; }
     public DateTime EndTime { get; set; }
     public int SlotsNeeded { get; set; }
+    public int BreakMinutes { get; set; }
     public ShiftStatus Status { get; set; }
     public string? Notes { get; set; }
     public Guid CreatedById { get; set; }

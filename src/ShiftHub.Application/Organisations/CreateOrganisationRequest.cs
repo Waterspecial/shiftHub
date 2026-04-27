@@ -8,5 +8,4 @@ public class CreateOrganisationRequest
     public string Subdomain { get; set; } = string.Empty;
     public string BillingEmail { get; set; } = string.Empty;
     public PayFrequency PayFrequency { get; set; }
-    public Guid AdminUserId { get; set; }
 }

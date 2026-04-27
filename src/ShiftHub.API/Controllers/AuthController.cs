@@ -27,10 +27,13 @@ public class AuthController : ControllerBase
     {
         var result = await _authService.LoginAsync(request);
 
-        if (result.RequiresWorkspacePicker)
-            return Ok(new { requiresWorkspacePicker = true, userId = result.UserId, workspaces = result.Workspaces });
-
-        return Ok(new { token = result.Token });
+        return Ok(new
+        {
+            token = result.Token,
+            userId = result.UserId,
+            requiresWorkspacePicker = result.RequiresWorkspacePicker,
+            workspaces = result.Workspaces
+        });
     }
 
     [HttpPost("select-workspace")]

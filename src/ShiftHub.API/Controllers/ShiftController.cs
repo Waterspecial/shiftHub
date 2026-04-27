@@ -18,6 +18,7 @@ public class ShiftController : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Roles = "Admin,Manager")]
     public async Task<IActionResult> Create([FromBody] CreateShiftRequest request)
     {
         var shift = await _shiftService.CreateAsync(request);
@@ -32,6 +33,7 @@ public class ShiftController : ControllerBase
     }
 
     [HttpPost("{shiftId}/publish")]
+    [Authorize(Roles = "Admin,Manager")]
     public async Task<IActionResult> Publish(Guid shiftId)
     {
         var shift = await _shiftService.PublishAsync(shiftId);
@@ -60,6 +62,7 @@ public class ShiftController : ControllerBase
     }
 
     [HttpPost("{shiftId}/accept")]
+    [Authorize(Roles = "Worker")]
     public async Task<IActionResult> Accept(Guid shiftId)
     {
         var assignment = await _shiftService.AcceptAsync(shiftId);
@@ -67,6 +70,7 @@ public class ShiftController : ControllerBase
     }
 
     [HttpPost("{shiftId}/clock-in")]
+    [Authorize(Roles = "Worker")]
     public async Task<IActionResult> ClockIn(Guid shiftId)
     {
         await _shiftService.ClockInAsync(shiftId);
@@ -74,6 +78,7 @@ public class ShiftController : ControllerBase
     }
 
     [HttpPost("{shiftId}/clock-out")]
+    [Authorize(Roles = "Worker")]
     public async Task<IActionResult> ClockOut(Guid shiftId)
     {
         await _shiftService.ClockOutAsync(shiftId);

@@ -70,7 +70,18 @@ public class AuthService : IAuthService
             .Where(m => m.Status == MembershipStatus.Active)
             .ToList();
 
-        // user belongs to exactly one org — issue token immediately
+        // 0 orgs — issue a bootstrap token so the user can create their first agency
+        if (activeMemberships.Count == 0)
+        {
+            return new AuthResult
+            {
+                UserId = user.Id,
+                RequiresWorkspacePicker = false,
+                Token = GenerateToken(user.Id)
+            };
+        }
+
+        // 1 org — issue a scoped token immediately
         if (activeMemberships.Count == 1)
         {
             var membership = activeMemberships[0];
@@ -82,11 +93,12 @@ public class AuthService : IAuthService
             };
         }
 
-        // user belongs to multiple orgs — return workspace list for picker
+        // 2+ orgs — issue a bootstrap token plus workspace list so the user can pick
         return new AuthResult
         {
             UserId = user.Id,
-            RequiresWorkspacePicker = activeMemberships.Count > 1,
+            RequiresWorkspacePicker = true,
+            Token = GenerateToken(user.Id),
             Workspaces = activeMemberships.Select(m => new WorkspaceOption
             {
                 OrgId = m.OrgId,
@@ -111,7 +123,7 @@ public class AuthService : IAuthService
         return GenerateToken(userId, orgId, membership.Role);
     }
 
-    private string GenerateToken(Guid userId, Guid orgId, UserRole role)
+    private string GenerateToken(Guid userId, Guid? orgId = null, UserRole? role = null)
     {
         var secret = _config["Jwt__Secret"] ?? _config["Jwt:Secret"]
             ?? throw new InvalidOperationException("JWT secret is not configured.");
@@ -119,13 +131,17 @@ public class AuthService : IAuthService
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secret));
         var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
-        var claims = new[]
+        var claims = new List<Claim>
         {
             new Claim(JwtRegisteredClaimNames.Sub, userId.ToString()),
-            new Claim("orgId", orgId.ToString()),
-            new Claim(ClaimTypes.Role, role.ToString()),
             new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
         };
+
+        if (orgId.HasValue)
+            claims.Add(new Claim("orgId", orgId.Value.ToString()));
+
+        if (role.HasValue)
+            claims.Add(new Claim(ClaimTypes.Role, role.Value.ToString()));
 
         var token = new JwtSecurityToken(
             issuer: _config["Jwt__Issuer"] ?? _config["Jwt:Issuer"],

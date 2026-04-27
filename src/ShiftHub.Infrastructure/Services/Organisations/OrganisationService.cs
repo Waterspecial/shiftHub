@@ -10,23 +10,24 @@ namespace ShiftHub.Infrastructure.Services.Organisations;
 public class OrganisationService : IOrganisationService
 {
     private readonly ShiftHubDbContext _db;
+    private readonly ICurrentTenantService _tenant;
 
-    public OrganisationService(ShiftHubDbContext db)
+    public OrganisationService(ShiftHubDbContext db, ICurrentTenantService tenant)
     {
         _db = db;
+        _tenant = tenant;
     }
 
     public async Task<Organisation> CreateAsync(CreateOrganisationRequest request)
     {
+        var adminUserId = _tenant.UserId
+            ?? throw new UnauthorizedAccessException("You must be logged in to create an agency.");
+
         var subdomainTaken = await _db.Organisations
             .AnyAsync(o => o.Subdomain == request.Subdomain.ToLower().Trim());
 
         if (subdomainTaken)
             throw new InvalidOperationException("This subdomain is already taken.");
-
-        var adminExists = await _db.Users.AnyAsync(u => u.Id == request.AdminUserId);
-        if (!adminExists)
-            throw new InvalidOperationException("User not found.");
 
         var org = new Organisation
         {
@@ -41,7 +42,7 @@ public class OrganisationService : IOrganisationService
         var membership = new OrgMembership
         {
             Id = Guid.NewGuid(),
-            UserId = request.AdminUserId,
+            UserId = adminUserId,
             OrgId = org.Id,
             Role = UserRole.Admin,
             Status = MembershipStatus.Active,
@@ -57,24 +58,27 @@ public class OrganisationService : IOrganisationService
 
     public async Task AddMemberAsync(Guid orgId, AddMemberRequest request)
     {
-        var orgExists = await _db.Organisations.AnyAsync(o => o.Id == orgId);
-        if (!orgExists)
-            throw new InvalidOperationException("Organisation not found.");
+        if (_tenant.OrgId != orgId)
+            throw new UnauthorizedAccessException("You can only add members to your own agency.");
 
-        var userExists = await _db.Users.AnyAsync(u => u.Id == request.UserId);
-        if (!userExists)
-            throw new InvalidOperationException("User not found.");
+        var email = request.Email.ToLower().Trim();
+
+        var user = await _db.Users
+            .IgnoreQueryFilters()
+            .FirstOrDefaultAsync(u => u.Email == email)
+            ?? throw new InvalidOperationException("No registered user found with that email. Ask them to register first.");
 
         var alreadyMember = await _db.OrgMemberships
-            .AnyAsync(m => m.UserId == request.UserId && m.OrgId == orgId);
+            .IgnoreQueryFilters()
+            .AnyAsync(m => m.UserId == user.Id && m.OrgId == orgId);
 
         if (alreadyMember)
-            throw new InvalidOperationException("User is already a member of this organisation.");
+            throw new InvalidOperationException("This user is already a member of your agency.");
 
         var membership = new OrgMembership
         {
             Id = Guid.NewGuid(),
-            UserId = request.UserId,
+            UserId = user.Id,
             OrgId = orgId,
             Role = request.Role,
             Status = MembershipStatus.Active,

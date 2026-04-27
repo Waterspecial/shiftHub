@@ -7,7 +7,7 @@ namespace ShiftHub.API.Controllers;
 
 [ApiController]
 [Route("api/payrates")]
-[Authorize]
+[Authorize(Roles = "Admin,Manager")]
 public class PayRateController : ControllerBase
 {
     private readonly IPayRateService _payRateService;

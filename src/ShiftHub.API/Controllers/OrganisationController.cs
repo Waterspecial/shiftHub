@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using ShiftHub.Application.Interfaces;
 using ShiftHub.Application.Organisations;
@@ -6,6 +7,7 @@ namespace ShiftHub.API.Controllers;
 
 [ApiController]
 [Route("api/organisations")]
+[Authorize]
 public class OrganisationController : ControllerBase
 {
     private readonly IOrganisationService _organisationService;
@@ -23,6 +25,7 @@ public class OrganisationController : ControllerBase
     }
 
     [HttpPost("{orgId}/members")]
+    [Authorize(Roles = "Admin,Manager")]
     public async Task<IActionResult> AddMember(Guid orgId, [FromBody] AddMemberRequest request)
     {
         await _organisationService.AddMemberAsync(orgId, request);

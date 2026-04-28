@@ -1,10 +1,12 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using ShiftHub.API.Middleware;
 using ShiftHub.Application.Interfaces;
 using ShiftHub.Infrastructure.Persistence;
 using ShiftHub.Infrastructure.Services;
 using ShiftHub.Infrastructure.Services.Clients;
+using ShiftHub.Infrastructure.Services.Invites;
 using ShiftHub.Infrastructure.Services.Organisations;
 using ShiftHub.Infrastructure.Services.PayRates;
 using ShiftHub.Infrastructure.Services.Shifts;
@@ -33,6 +35,9 @@ builder.Services.AddScoped<IPayRateService, PayRateService>();
 // Shift service — handles shift lifecycle
 builder.Services.AddScoped<IShiftService, ShiftService>();
 
+// Invite service — handles invite code creation and redemption
+builder.Services.AddScoped<IInviteService, InviteService>();
+
 // Database — connects EF Core to PostgreSQL
 builder.Services.AddDbContext<ShiftHubDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
@@ -54,8 +59,13 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         };
     });
 
-// Controllers
-builder.Services.AddControllers();
+// Controllers — accept and return enums as strings (e.g. "Weekly" instead of 0)
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.Converters.Add(
+            new System.Text.Json.Serialization.JsonStringEnumConverter());
+    });
 
 // Swagger
 builder.Services.AddEndpointsApiExplorer();
@@ -71,6 +81,7 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 app.UseAuthentication();
+app.UseMiddleware<TenantResolutionMiddleware>();
 app.UseAuthorization();
 app.MapControllers();
 

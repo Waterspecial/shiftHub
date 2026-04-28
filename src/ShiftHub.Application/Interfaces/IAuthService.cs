@@ -6,5 +6,5 @@ public interface IAuthService
 {
     Task<AuthResult> RegisterAsync(RegisterRequest request);
     Task<AuthResult> LoginAsync(LoginRequest request);
-    Task<string> SelectWorkspaceAsync(Guid userId, Guid orgId);
+    Task<AuthResult> SelectWorkspaceAsync(Guid userId, Guid orgId);
 }

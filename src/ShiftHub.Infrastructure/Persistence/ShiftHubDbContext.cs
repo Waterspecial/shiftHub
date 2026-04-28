@@ -24,19 +24,23 @@ public class ShiftHubDbContext : DbContext
     public DbSet<Shift> Shifts => Set<Shift>();
     public DbSet<ShiftAssignment> ShiftAssignments => Set<ShiftAssignment>();
     public DbSet<Timesheet> Timesheets => Set<Timesheet>();
+    public DbSet<Invite> Invites => Set<Invite>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
 
-        // multi-tenant global query filters — scopes all queries to the active org
-        modelBuilder.Entity<Client>().HasQueryFilter(c => c.OrgId == _tenant.OrgId);
-        modelBuilder.Entity<Site>().HasQueryFilter(s => s.Client.OrgId == _tenant.OrgId);
-        modelBuilder.Entity<PayRate>().HasQueryFilter(p => p.OrgId == _tenant.OrgId);
-        modelBuilder.Entity<Shift>().HasQueryFilter(s => s.OrgId == _tenant.OrgId);
-        modelBuilder.Entity<ShiftAssignment>().HasQueryFilter(a => a.Shift.OrgId == _tenant.OrgId);
-        modelBuilder.Entity<Timesheet>().HasQueryFilter(t => t.Assignment.Shift.OrgId == _tenant.OrgId);
-        modelBuilder.Entity<OrgMembership>().HasQueryFilter(m => m.OrgId == _tenant.OrgId);
+        // multi-tenant global query filters — scopes all queries to the active org.
+        // when _tenant.OrgId is null (auth flows like login or bootstrap token), the filter
+        // becomes a no-op so cross-tenant lookups work without IgnoreQueryFilters().
+        modelBuilder.Entity<Client>().HasQueryFilter(c => _tenant.OrgId == null || c.OrgId == _tenant.OrgId);
+        modelBuilder.Entity<Site>().HasQueryFilter(s => _tenant.OrgId == null || s.Client.OrgId == _tenant.OrgId);
+        modelBuilder.Entity<PayRate>().HasQueryFilter(p => _tenant.OrgId == null || p.OrgId == _tenant.OrgId);
+        modelBuilder.Entity<Shift>().HasQueryFilter(s => _tenant.OrgId == null || s.OrgId == _tenant.OrgId);
+        modelBuilder.Entity<ShiftAssignment>().HasQueryFilter(a => _tenant.OrgId == null || a.Shift.OrgId == _tenant.OrgId);
+        modelBuilder.Entity<Timesheet>().HasQueryFilter(t => _tenant.OrgId == null || t.Assignment.Shift.OrgId == _tenant.OrgId);
+        modelBuilder.Entity<OrgMembership>().HasQueryFilter(m => _tenant.OrgId == null || m.OrgId == _tenant.OrgId);
+        modelBuilder.Entity<Invite>().HasQueryFilter(i => _tenant.OrgId == null || i.OrgId == _tenant.OrgId);
 
         // explicit FK mappings — EF Core convention expects "OrganisationId" but we use "OrgId"
         modelBuilder.Entity<OrgMembership>()
@@ -78,6 +82,15 @@ public class ShiftHubDbContext : DbContext
             .HasOne(t => t.Assignment)
             .WithOne(a => a.Timesheet)
             .HasForeignKey<Timesheet>(t => t.AssignmentId);
+
+        modelBuilder.Entity<Invite>()
+            .HasOne(i => i.Organisation)
+            .WithMany()
+            .HasForeignKey(i => i.OrgId);
+
+        modelBuilder.Entity<Invite>()
+            .HasIndex(i => i.Code)
+            .IsUnique();
 
         // store string[] as a PostgreSQL text array
         modelBuilder.Entity<User>()

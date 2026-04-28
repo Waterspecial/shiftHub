@@ -8,7 +8,7 @@ namespace ShiftHub.API.Controllers;
 
 [ApiController]
 [Route("api/clients")]
-[Authorize]
+[Authorize(Roles = "Admin,Manager")]
 public class ClientController : ControllerBase
 {
     private readonly IClientService _clientService;

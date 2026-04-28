@@ -19,25 +19,21 @@ public class AuthController : ControllerBase
     public async Task<IActionResult> Register([FromBody] RegisterRequest request)
     {
         var result = await _authService.RegisterAsync(request);
-        return Ok(new { message = "Account created successfully.", userId = result.UserId });
+        return Ok(new { message = "Account created successfully.", user = result.User });
     }
 
     [HttpPost("login")]
     public async Task<IActionResult> Login([FromBody] LoginRequest request)
     {
         var result = await _authService.LoginAsync(request);
-
-        if (result.RequiresWorkspacePicker)
-            return Ok(new { requiresWorkspacePicker = true, userId = result.UserId, workspaces = result.Workspaces });
-
-        return Ok(new { token = result.Token });
+        return Ok(result);
     }
 
     [HttpPost("select-workspace")]
     public async Task<IActionResult> SelectWorkspace([FromBody] SelectWorkspaceRequest request)
     {
-        var token = await _authService.SelectWorkspaceAsync(request.UserId, request.OrgId);
-        return Ok(new { token });
+        var result = await _authService.SelectWorkspaceAsync(request.UserId, request.OrgId);
+        return Ok(result);
     }
 }
 

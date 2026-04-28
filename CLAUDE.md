@@ -97,12 +97,20 @@ apps/
 - [x] DateTime UTC fix — `DateTime.SpecifyKind` for PostgreSQL compatibility
 - [x] Full shift lifecycle tested in Postman — Timesheet records `HoursWorked` correctly
 
+- [x] Auth flow hardened — bootstrap token for users with 0 orgs, `[Authorize]` on org creation, `AdminUserId` taken from JWT not body
+- [x] AddMember now uses email instead of UserId
+- [x] Role-based authorization — `[Authorize(Roles = "...")]` on every endpoint (Admin/Manager/Worker)
+- [x] Global query filters cleaned up (`_tenant.OrgId == null || x.OrgId == _tenant.OrgId`) — dropped scattered `IgnoreQueryFilters()` calls
+- [x] `TenantResolutionMiddleware` — verifies active membership on every authenticated request
+- [x] Login/SelectWorkspace return enriched response: `user`, `currentWorkspace`, `workspaces`
+- [x] `JsonStringEnumConverter` registered globally — APIs accept `"Weekly"` instead of `0`
+- [x] Update member role — `PATCH /api/organisations/{orgId}/members/{userId}/role` (Admin only, prevents demoting last Admin)
+- [x] Invite codes — `Invite` entity, create endpoint (Admin/Manager), redeem endpoint, single-use with expiry
+
 ### Up Next
-- [ ] `TenantResolutionMiddleware` — validates membership on every request
-- [ ] Fix global query filters properly (`_tenant.OrgId == null || x.OrgId == _tenant.OrgId`) instead of scattering `IgnoreQueryFilters()`
+- [ ] Read endpoints — `GET /api/organisations/me`, `GET /api/organisations/{orgId}/members`, `GET /api/shifts`, `GET /api/shifts/{shiftId}`, `GET /api/shifts/my`, `GET /api/clients/{clientId}`
 - [ ] Release shift — reopens slot and notifies other workers
 - [ ] Repository implementations in Infrastructure
-- [ ] Remaining Phase 1 endpoints
 
 ## Common Commands
 ```bash

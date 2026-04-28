@@ -64,12 +64,10 @@ public class OrganisationService : IOrganisationService
         var email = request.Email.ToLower().Trim();
 
         var user = await _db.Users
-            .IgnoreQueryFilters()
             .FirstOrDefaultAsync(u => u.Email == email)
             ?? throw new InvalidOperationException("No registered user found with that email. Ask them to register first.");
 
         var alreadyMember = await _db.OrgMemberships
-            .IgnoreQueryFilters()
             .AnyAsync(m => m.UserId == user.Id && m.OrgId == orgId);
 
         if (alreadyMember)

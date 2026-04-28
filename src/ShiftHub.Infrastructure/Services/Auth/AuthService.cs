@@ -45,9 +45,10 @@ public class AuthService : IAuthService
 
         return new AuthResult
         {
-            UserId = user.Id,
-            RequiresWorkspacePicker = false,
             Token = null,
+            User = MapUser(user),
+            CurrentWorkspace = null,
+            RequiresWorkspacePicker = false,
             Workspaces = []
         };
     }
@@ -57,7 +58,6 @@ public class AuthService : IAuthService
         var user = await _db.Users
             .Include(u => u.Memberships)
                 .ThenInclude(m => m.Organisation)
-            .IgnoreQueryFilters()
             .FirstOrDefaultAsync(u => u.Email == request.Email.ToLower().Trim());
 
         if (user == null || !BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
@@ -70,14 +70,18 @@ public class AuthService : IAuthService
             .Where(m => m.Status == MembershipStatus.Active)
             .ToList();
 
+        var workspaces = activeMemberships.Select(MapWorkspace).ToList();
+
         // 0 orgs — issue a bootstrap token so the user can create their first agency
         if (activeMemberships.Count == 0)
         {
             return new AuthResult
             {
-                UserId = user.Id,
+                Token = GenerateToken(user.Id),
+                User = MapUser(user),
+                CurrentWorkspace = null,
                 RequiresWorkspacePicker = false,
-                Token = GenerateToken(user.Id)
+                Workspaces = []
             };
         }
 
@@ -87,41 +91,69 @@ public class AuthService : IAuthService
             var membership = activeMemberships[0];
             return new AuthResult
             {
-                UserId = user.Id,
+                Token = GenerateToken(user.Id, membership.OrgId, membership.Role),
+                User = MapUser(user),
+                CurrentWorkspace = MapWorkspace(membership),
                 RequiresWorkspacePicker = false,
-                Token = GenerateToken(user.Id, membership.OrgId, membership.Role)
+                Workspaces = workspaces
             };
         }
 
         // 2+ orgs — issue a bootstrap token plus workspace list so the user can pick
         return new AuthResult
         {
-            UserId = user.Id,
-            RequiresWorkspacePicker = true,
             Token = GenerateToken(user.Id),
-            Workspaces = activeMemberships.Select(m => new WorkspaceOption
-            {
-                OrgId = m.OrgId,
-                OrgName = m.Organisation.Name,
-                Role = m.Role.ToString()
-            }).ToList()
+            User = MapUser(user),
+            CurrentWorkspace = null,
+            RequiresWorkspacePicker = true,
+            Workspaces = workspaces
         };
     }
 
-    public async Task<string> SelectWorkspaceAsync(Guid userId, Guid orgId)
+    public async Task<AuthResult> SelectWorkspaceAsync(Guid userId, Guid orgId)
     {
-        var membership = await _db.OrgMemberships
-            .IgnoreQueryFilters()
-            .FirstOrDefaultAsync(m => m.UserId == userId && m.OrgId == orgId && m.Status == MembershipStatus.Active);
+        var user = await _db.Users
+            .Include(u => u.Memberships)
+                .ThenInclude(m => m.Organisation)
+            .FirstOrDefaultAsync(u => u.Id == userId)
+            ?? throw new UnauthorizedAccessException("User not found.");
 
-        if (membership == null)
-            throw new UnauthorizedAccessException("You do not have access to this workspace.");
+        var membership = user.Memberships
+            .FirstOrDefault(m => m.OrgId == orgId && m.Status == MembershipStatus.Active)
+            ?? throw new UnauthorizedAccessException("You do not have access to this workspace.");
 
         membership.LastActiveAt = DateTime.UtcNow;
         await _db.SaveChangesAsync();
 
-        return GenerateToken(userId, orgId, membership.Role);
+        var workspaces = user.Memberships
+            .Where(m => m.Status == MembershipStatus.Active)
+            .Select(MapWorkspace)
+            .ToList();
+
+        return new AuthResult
+        {
+            Token = GenerateToken(userId, orgId, membership.Role),
+            User = MapUser(user),
+            CurrentWorkspace = MapWorkspace(membership),
+            RequiresWorkspacePicker = false,
+            Workspaces = workspaces
+        };
     }
+
+    private static UserInfo MapUser(User user) => new()
+    {
+        UserId = user.Id,
+        FullName = user.FullName,
+        Email = user.Email,
+        Phone = user.Phone
+    };
+
+    private static WorkspaceOption MapWorkspace(OrgMembership m) => new()
+    {
+        OrgId = m.OrgId,
+        OrgName = m.Organisation.Name,
+        Role = m.Role.ToString()
+    };
 
     private string GenerateToken(Guid userId, Guid? orgId = null, UserRole? role = null)
     {

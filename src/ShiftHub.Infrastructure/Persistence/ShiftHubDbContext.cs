@@ -24,6 +24,7 @@ public class ShiftHubDbContext : DbContext
     public DbSet<Shift> Shifts => Set<Shift>();
     public DbSet<ShiftAssignment> ShiftAssignments => Set<ShiftAssignment>();
     public DbSet<Timesheet> Timesheets => Set<Timesheet>();
+    public DbSet<Invite> Invites => Set<Invite>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -39,6 +40,7 @@ public class ShiftHubDbContext : DbContext
         modelBuilder.Entity<ShiftAssignment>().HasQueryFilter(a => _tenant.OrgId == null || a.Shift.OrgId == _tenant.OrgId);
         modelBuilder.Entity<Timesheet>().HasQueryFilter(t => _tenant.OrgId == null || t.Assignment.Shift.OrgId == _tenant.OrgId);
         modelBuilder.Entity<OrgMembership>().HasQueryFilter(m => _tenant.OrgId == null || m.OrgId == _tenant.OrgId);
+        modelBuilder.Entity<Invite>().HasQueryFilter(i => _tenant.OrgId == null || i.OrgId == _tenant.OrgId);
 
         // explicit FK mappings — EF Core convention expects "OrganisationId" but we use "OrgId"
         modelBuilder.Entity<OrgMembership>()
@@ -80,6 +82,15 @@ public class ShiftHubDbContext : DbContext
             .HasOne(t => t.Assignment)
             .WithOne(a => a.Timesheet)
             .HasForeignKey<Timesheet>(t => t.AssignmentId);
+
+        modelBuilder.Entity<Invite>()
+            .HasOne(i => i.Organisation)
+            .WithMany()
+            .HasForeignKey(i => i.OrgId);
+
+        modelBuilder.Entity<Invite>()
+            .HasIndex(i => i.Code)
+            .IsUnique();
 
         // store string[] as a PostgreSQL text array
         modelBuilder.Entity<User>()

@@ -6,6 +6,7 @@ using ShiftHub.Application.Interfaces;
 using ShiftHub.Infrastructure.Persistence;
 using ShiftHub.Infrastructure.Services;
 using ShiftHub.Infrastructure.Services.Clients;
+using ShiftHub.Infrastructure.Services.Invites;
 using ShiftHub.Infrastructure.Services.Organisations;
 using ShiftHub.Infrastructure.Services.PayRates;
 using ShiftHub.Infrastructure.Services.Shifts;
@@ -33,6 +34,9 @@ builder.Services.AddScoped<IPayRateService, PayRateService>();
 
 // Shift service — handles shift lifecycle
 builder.Services.AddScoped<IShiftService, ShiftService>();
+
+// Invite service — handles invite code creation and redemption
+builder.Services.AddScoped<IInviteService, InviteService>();
 
 // Database — connects EF Core to PostgreSQL
 builder.Services.AddDbContext<ShiftHubDbContext>(options =>

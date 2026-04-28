@@ -86,4 +86,30 @@ public class OrganisationService : IOrganisationService
         _db.OrgMemberships.Add(membership);
         await _db.SaveChangesAsync();
     }
+
+    public async Task UpdateMemberRoleAsync(Guid orgId, Guid userId, UpdateMemberRoleRequest request)
+    {
+        if (_tenant.OrgId != orgId)
+            throw new UnauthorizedAccessException("You can only update members in your own agency.");
+
+        var membership = await _db.OrgMemberships
+            .FirstOrDefaultAsync(m => m.UserId == userId && m.OrgId == orgId)
+            ?? throw new InvalidOperationException("User is not a member of this agency.");
+
+        // prevent removing the last Admin — every agency must have at least one
+        if (membership.Role == UserRole.Admin && request.Role != UserRole.Admin)
+        {
+            var otherAdmins = await _db.OrgMemberships
+                .CountAsync(m => m.OrgId == orgId
+                              && m.Role == UserRole.Admin
+                              && m.Status == MembershipStatus.Active
+                              && m.UserId != userId);
+
+            if (otherAdmins == 0)
+                throw new InvalidOperationException("Cannot demote the last Admin. Promote another member to Admin first.");
+        }
+
+        membership.Role = request.Role;
+        await _db.SaveChangesAsync();
+    }
 }

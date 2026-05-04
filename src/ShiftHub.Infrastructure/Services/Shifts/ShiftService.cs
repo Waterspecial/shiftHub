@@ -64,10 +64,69 @@ public class ShiftService : IShiftService
         if (shift.Status != ShiftStatus.Draft)
             throw new InvalidOperationException("Only draft shifts can be published.");
 
+        shift.Status = ShiftStatus.Reserved;
+        await _db.SaveChangesAsync();
+
+        return shift;
+    }
+
+    public async Task<Shift> OpenAsync(Guid shiftId)
+    {
+        var shift = await _db.Shifts.FindAsync(shiftId)
+            ?? throw new InvalidOperationException("Shift not found.");
+
+        if (shift.Status != ShiftStatus.Reserved)
+            throw new InvalidOperationException("Only reserved shifts can be opened to self-serve.");
+
         shift.Status = ShiftStatus.Published;
         await _db.SaveChangesAsync();
 
         return shift;
+    }
+
+    public async Task<ShiftAssignment> AssignAsync(Guid shiftId, Guid userId)
+    {
+        var shift = await _db.Shifts
+            .Include(s => s.Assignments)
+            .FirstOrDefaultAsync(s => s.Id == shiftId)
+            ?? throw new InvalidOperationException("Shift not found.");
+
+        if (shift.Status != ShiftStatus.Reserved && shift.Status != ShiftStatus.Published)
+            throw new InvalidOperationException("Shift must be reserved or published to assign workers.");
+
+        var membership = await _db.OrgMemberships
+            .FirstOrDefaultAsync(m => m.OrgId == shift.OrgId && m.UserId == userId)
+            ?? throw new InvalidOperationException("User is not a member of this organisation.");
+
+        if (membership.Status != MembershipStatus.Active)
+            throw new InvalidOperationException("User is not an active member of this organisation.");
+
+        if (membership.Role != UserRole.Worker)
+            throw new InvalidOperationException("Only workers can be assigned to shifts.");
+
+        var acceptedCount = shift.Assignments.Count(a => a.Status == AssignmentStatus.Accepted);
+        if (acceptedCount >= shift.SlotsNeeded)
+            throw new InvalidOperationException("This shift is already full.");
+
+        if (shift.Assignments.Any(a => a.UserId == userId))
+            throw new InvalidOperationException("This worker is already assigned to this shift.");
+
+        var assignment = new ShiftAssignment
+        {
+            Id = Guid.NewGuid(),
+            ShiftId = shiftId,
+            UserId = userId,
+            Status = AssignmentStatus.Accepted,
+            AcceptedAt = DateTime.UtcNow
+        };
+
+        if (acceptedCount + 1 == shift.SlotsNeeded)
+            shift.Status = ShiftStatus.Filled;
+
+        _db.ShiftAssignments.Add(assignment);
+        await _db.SaveChangesAsync();
+
+        return assignment;
     }
 
     public async Task<List<Shift>> GetAvailableAsync()
@@ -79,6 +138,67 @@ public class ShiftService : IShiftService
             .Where(s => s.Status == ShiftStatus.Published &&
                         s.Assignments.Count(a => a.Status == AssignmentStatus.Accepted) < s.SlotsNeeded)
             .OrderBy(s => s.StartTime)
+            .ToListAsync();
+    }
+
+    public async Task<List<Shift>> GetAllAsync(ShiftStatus? status)
+    {
+        var query = _db.Shifts
+            .Include(s => s.Site)
+                .ThenInclude(s => s.Client)
+            .Include(s => s.PayRate)
+            .Include(s => s.Assignments)
+            .AsQueryable();
+
+        if (status.HasValue)
+            query = query.Where(s => s.Status == status.Value);
+
+        return await query.OrderByDescending(s => s.StartTime).ToListAsync();
+    }
+
+    public async Task<Shift> GetByIdAsync(Guid shiftId)
+    {
+        return await _db.Shifts
+            .Include(s => s.Site)
+                .ThenInclude(s => s.Client)
+            .Include(s => s.PayRate)
+            .Include(s => s.Assignments)
+                .ThenInclude(a => a.User)
+            .Include(s => s.Assignments)
+                .ThenInclude(a => a.Timesheet)
+            .FirstOrDefaultAsync(s => s.Id == shiftId)
+            ?? throw new InvalidOperationException("Shift not found.");
+    }
+
+    public async Task<List<ShiftAssignment>> GetMyShiftsAsync()
+    {
+        var userId = _tenant.UserId!.Value;
+
+        return await _db.ShiftAssignments
+            .Include(a => a.Shift)
+                .ThenInclude(s => s.Site)
+                    .ThenInclude(s => s.Client)
+            .Include(a => a.Shift)
+                .ThenInclude(s => s.PayRate)
+            .Include(a => a.Timesheet)
+            .Where(a => a.UserId == userId)
+            .OrderByDescending(a => a.Shift.StartTime)
+            .ToListAsync();
+    }
+
+    public async Task<List<Timesheet>> GetMyTimesheetsAsync()
+    {
+        var userId = _tenant.UserId!.Value;
+
+        return await _db.Timesheets
+            .Include(t => t.Assignment)
+                .ThenInclude(a => a.Shift)
+                    .ThenInclude(s => s.Site)
+            .Include(t => t.Assignment)
+                .ThenInclude(a => a.Shift)
+                    .ThenInclude(s => s.PayRate)
+            .Where(t => t.Assignment.UserId == userId)
+            .OrderByDescending(t => t.ClockIn)
             .ToListAsync();
     }
 

@@ -29,7 +29,38 @@ public class ClientController : ControllerBase
     public async Task<IActionResult> GetAll()
     {
         var clients = await _clientService.GetAllAsync();
-        return Ok(clients);
+        return Ok(clients.Select(c => new
+        {
+            clientId = c.Id,
+            name = c.Name,
+            contactName = c.ContactName,
+            contactEmail = c.ContactEmail,
+            contactPhone = c.ContactPhone
+        }));
+    }
+
+    [HttpGet("{clientId}")]
+    public async Task<IActionResult> GetById(Guid clientId)
+    {
+        var client = await _clientService.GetByIdAsync(clientId);
+        return Ok(new
+        {
+            clientId = client.Id,
+            name = client.Name,
+            contactName = client.ContactName,
+            contactEmail = client.ContactEmail,
+            contactPhone = client.ContactPhone,
+            billingAddress = client.BillingAddress,
+            createdAt = client.CreatedAt,
+            sites = client.Sites.Select(s => new
+            {
+                siteId = s.Id,
+                name = s.Name,
+                address = s.Address,
+                postcode = s.Postcode,
+                notes = s.Notes
+            })
+        });
     }
 
     [HttpPost("{clientId}/sites")]

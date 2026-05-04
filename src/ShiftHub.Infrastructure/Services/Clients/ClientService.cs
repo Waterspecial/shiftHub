@@ -42,6 +42,14 @@ public class ClientService : IClientService
         return await _db.Clients.ToListAsync();
     }
 
+    public async Task<Client> GetByIdAsync(Guid clientId)
+    {
+        return await _db.Clients
+            .Include(c => c.Sites)
+            .FirstOrDefaultAsync(c => c.Id == clientId)
+            ?? throw new InvalidOperationException("Client not found.");
+    }
+
     public async Task<Site> CreateSiteAsync(Guid clientId, CreateSiteRequest request)
     {
         var clientExists = await _db.Clients.AnyAsync(c => c.Id == clientId);

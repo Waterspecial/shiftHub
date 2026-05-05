@@ -112,4 +112,24 @@ public class OrganisationService : IOrganisationService
         membership.Role = request.Role;
         await _db.SaveChangesAsync();
     }
+
+    public async Task<Organisation> GetMyAsync()
+    {
+        var orgId = _tenant.OrgId
+            ?? throw new UnauthorizedAccessException("You must select a workspace first.");
+
+        return await _db.Organisations.FirstOrDefaultAsync(o => o.Id == orgId)
+            ?? throw new InvalidOperationException("Agency not found.");
+    }
+
+    public async Task<List<OrgMembership>> GetMembersAsync(Guid orgId)
+    {
+        if (_tenant.OrgId != orgId)
+            throw new UnauthorizedAccessException("You can only view members of your own agency.");
+
+        return await _db.OrgMemberships
+            .Include(m => m.User)
+            .OrderBy(m => m.User.FullName)
+            .ToListAsync();
+    }
 }

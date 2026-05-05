@@ -56,4 +56,37 @@ public class OrganisationController : ControllerBase
             expiresAt = invite.ExpiresAt
         });
     }
+
+    [HttpGet("me")]
+    public async Task<IActionResult> GetMy()
+    {
+        var org = await _organisationService.GetMyAsync();
+        return Ok(new
+        {
+            orgId = org.Id,
+            name = org.Name,
+            subdomain = org.Subdomain,
+            billingEmail = org.BillingEmail,
+            payFrequency = org.PayFrequency.ToString(),
+            createdAt = org.CreatedAt
+        });
+    }
+
+    [HttpGet("{orgId}/members")]
+    [Authorize(Roles = "Admin,Manager")]
+    public async Task<IActionResult> GetMembers(Guid orgId)
+    {
+        var members = await _organisationService.GetMembersAsync(orgId);
+        return Ok(members.Select(m => new
+        {
+            userId = m.UserId,
+            fullName = m.User.FullName,
+            email = m.User.Email,
+            phone = m.User.Phone,
+            role = m.Role.ToString(),
+            status = m.Status.ToString(),
+            joinedAt = m.JoinedAt,
+            lastActiveAt = m.LastActiveAt
+        }));
+    }
 }

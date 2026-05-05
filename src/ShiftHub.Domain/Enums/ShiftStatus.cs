@@ -7,5 +7,6 @@ public enum ShiftStatus
     Filled,
     InProgress,
     Completed,
-    Cancelled
+    Cancelled,
+    Reserved
 }

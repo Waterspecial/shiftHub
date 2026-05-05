@@ -8,4 +8,6 @@ public interface IOrganisationService
     Task<Organisation> CreateAsync(CreateOrganisationRequest request);
     Task AddMemberAsync(Guid orgId, AddMemberRequest request);
     Task UpdateMemberRoleAsync(Guid orgId, Guid userId, UpdateMemberRoleRequest request);
+    Task<Organisation> GetMyAsync();
+    Task<List<OrgMembership>> GetMembersAsync(Guid orgId);
 }

@@ -28,10 +28,13 @@ src/
   ShiftHub.Infrastructure/ # EF Core, repositories, external services
   ShiftHub.API/            # ASP.NET Core Web API — controllers, middleware, JWT
   ShiftHub.Worker/         # Hangfire background jobs (Phase 2+, not active yet)
-apps/
-  mobile/                  # React Native / Flutter worker app
-  web/                     # Next.js manager dashboard
 ```
+
+**Frontend lives in sibling repos** (polyrepo):
+- `shiftHub-web` — Next.js manager dashboard
+- `shiftHub-mobile` — React Native worker app (later)
+
+CORS for the web origin is configured via `Cors:AllowedOrigins` in `appsettings.json` (defaults to `http://localhost:3000` in dev).
 
 ## Project Reference Rules (Clean Architecture)
 - Domain → nothing

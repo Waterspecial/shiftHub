@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using ShiftHub.Application.Interfaces;
 using ShiftHub.Application.Invites;
 using ShiftHub.Application.Organisations;
+using ShiftHub.Domain.Enums;
 
 namespace ShiftHub.API.Controllers;
 
@@ -74,19 +75,17 @@ public class OrganisationController : ControllerBase
 
     [HttpGet("{orgId}/members")]
     [Authorize(Roles = "Admin,Manager")]
-    public async Task<IActionResult> GetMembers(Guid orgId)
+    public async Task<IActionResult> GetMembers(Guid orgId, [FromQuery] UserRole? role)
     {
-        var members = await _organisationService.GetMembersAsync(orgId);
-        return Ok(members.Select(m => new
-        {
-            userId = m.UserId,
-            fullName = m.User.FullName,
-            email = m.User.Email,
-            phone = m.User.Phone,
-            role = m.Role.ToString(),
-            status = m.Status.ToString(),
-            joinedAt = m.JoinedAt,
-            lastActiveAt = m.LastActiveAt
-        }));
+        var members = await _organisationService.GetMembersAsync(orgId, role);
+        return Ok(members);
+    }
+
+    [HttpGet("{orgId}/members/{userId}")]
+    [Authorize(Roles = "Admin,Manager")]
+    public async Task<IActionResult> GetMemberById(Guid orgId, Guid userId)
+    {
+        var member = await _organisationService.GetMemberByIdAsync(orgId, userId);
+        return Ok(member);
     }
 }

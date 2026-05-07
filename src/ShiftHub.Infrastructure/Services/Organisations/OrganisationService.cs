@@ -122,14 +122,71 @@ public class OrganisationService : IOrganisationService
             ?? throw new InvalidOperationException("Agency not found.");
     }
 
-    public async Task<List<OrgMembership>> GetMembersAsync(Guid orgId)
+    public async Task<List<MemberDto>> GetMembersAsync(Guid orgId, UserRole? role)
     {
         if (_tenant.OrgId != orgId)
             throw new UnauthorizedAccessException("You can only view members of your own agency.");
 
-        return await _db.OrgMemberships
+        var query = _db.OrgMemberships
             .Include(m => m.User)
+            .Where(m => m.OrgId == orgId);
+
+        if (role.HasValue)
+            query = query.Where(m => m.Role == role.Value);
+
+        return await query
             .OrderBy(m => m.User.FullName)
+            .Select(m => new MemberDto(
+                m.UserId,
+                m.User.FullName,
+                m.User.Email,
+                m.User.Phone,
+                m.Role.ToString(),
+                m.Status.ToString(),
+                m.JoinedAt))
             .ToListAsync();
+    }
+
+    public async Task<MemberDetailDto> GetMemberByIdAsync(Guid orgId, Guid userId)
+    {
+        if (_tenant.OrgId != orgId)
+            throw new UnauthorizedAccessException("You can only view members of your own agency.");
+
+        var membership = await _db.OrgMemberships
+            .Include(m => m.User)
+            .FirstOrDefaultAsync(m => m.OrgId == orgId && m.UserId == userId)
+            ?? throw new InvalidOperationException("User is not a member of this agency.");
+
+        var recentShifts = await _db.ShiftAssignments
+            .Include(a => a.Shift)
+                .ThenInclude(s => s.Site)
+                    .ThenInclude(s => s.Client)
+            .Include(a => a.Timesheet)
+            .Where(a => a.UserId == userId && a.Shift.OrgId == orgId)
+            .OrderByDescending(a => a.Shift.StartTime)
+            .Take(10)
+            .Select(a => new MemberShiftDto(
+                a.Id,
+                a.ShiftId,
+                a.Shift.Site.Name,
+                a.Shift.Site.Client.Name,
+                a.Shift.StartTime,
+                a.Shift.EndTime,
+                a.Status.ToString(),
+                a.Shift.Status.ToString(),
+                a.Timesheet != null ? a.Timesheet.ClockIn : (DateTime?)null,
+                a.Timesheet != null ? a.Timesheet.ClockOut : null,
+                a.Timesheet != null ? (decimal?)a.Timesheet.HoursWorked : null))
+            .ToListAsync();
+
+        return new MemberDetailDto(
+            membership.UserId,
+            membership.User.FullName,
+            membership.User.Email,
+            membership.User.Phone,
+            membership.Role.ToString(),
+            membership.Status.ToString(),
+            membership.JoinedAt,
+            recentShifts);
     }
 }
